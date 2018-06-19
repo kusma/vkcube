@@ -52,8 +52,17 @@ static int find_host_coherent_memory(struct vkcube *vc, unsigned allowed)
 
 static void fail_on_error(const char *func, VkResult result)
 {
-    if (result != VK_SUCCESS)
+    if (result == VK_SUCCESS)
+        return;
+
+    switch (result) {
+    case VK_ERROR_OUT_OF_HOST_MEMORY:
+    case VK_ERROR_OUT_OF_DEVICE_MEMORY:
+        fail("%s failed: out of memory", func);
+        break;
+    default:
         fail("%s failed", func);
+    }
 }
 
 static void
