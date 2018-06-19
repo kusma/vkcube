@@ -60,6 +60,7 @@ static void
 init_cube(struct vkcube *vc)
 {
    VkDescriptorSetLayout set_layout;
+   fail_on_error("vkCreateDescriptorSetLayout",
    vkCreateDescriptorSetLayout(vc->device,
                                &(VkDescriptorSetLayoutCreateInfo) {
                                   .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
@@ -74,8 +75,9 @@ init_cube(struct vkcube *vc)
                                   }
                                },
                                NULL,
-                               &set_layout);
+                               &set_layout));
 
+   fail_on_error("vkCreatePipelineLayout",
    vkCreatePipelineLayout(vc->device,
                           &(VkPipelineLayoutCreateInfo) {
                              .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
@@ -83,7 +85,7 @@ init_cube(struct vkcube *vc)
                              .pSetLayouts = &set_layout,
                           },
                           NULL,
-                          &vc->pipeline_layout);
+                          &vc->pipeline_layout));
 
    VkPipelineVertexInputStateCreateInfo vi_create_info = {
       .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
@@ -129,6 +131,7 @@ init_cube(struct vkcube *vc)
    };
 
    VkShaderModule vs_module;
+   fail_on_error("vkCreateShaderModule",
    vkCreateShaderModule(vc->device,
                         &(VkShaderModuleCreateInfo) {
                            .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
@@ -136,9 +139,10 @@ init_cube(struct vkcube *vc)
                            .pCode = (uint32_t *)vs_spirv_source,
                         },
                         NULL,
-                        &vs_module);
+                        &vs_module));
 
    VkShaderModule fs_module;
+   fail_on_error("vkCreateShaderModule",
    vkCreateShaderModule(vc->device,
                         &(VkShaderModuleCreateInfo) {
                            .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
@@ -146,8 +150,9 @@ init_cube(struct vkcube *vc)
                            .pCode = (uint32_t *)fs_spirv_source,
                         },
                         NULL,
-                        &fs_module);
+                        &fs_module));
 
+   fail_on_error("vkCreateGraphicsPipelines",
    vkCreateGraphicsPipelines(vc->device,
       (VkPipelineCache) { VK_NULL_HANDLE },
       1,
@@ -226,7 +231,7 @@ init_cube(struct vkcube *vc)
          .basePipelineIndex = 0
       },
       NULL,
-      &vc->pipeline);
+      &vc->pipeline));
 
    static const float vVertices[] = {
       // front
@@ -332,6 +337,7 @@ init_cube(struct vkcube *vc)
    vc->normals_offset = vc->colors_offset + sizeof(vColors);
    uint32_t mem_size = vc->normals_offset + sizeof(vNormals);
 
+   fail_on_error("vkCreateBuffer",
    vkCreateBuffer(vc->device,
                   &(VkBufferCreateInfo) {
                      .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
@@ -341,7 +347,7 @@ init_cube(struct vkcube *vc)
                      .flags = 0
                   },
                   NULL,
-                  &vc->buffer);
+                  &vc->buffer));
 
    VkMemoryRequirements reqs;
    vkGetBufferMemoryRequirements(vc->device, vc->buffer, &reqs);
@@ -350,6 +356,7 @@ init_cube(struct vkcube *vc)
    if (memory_type < 0)
       fail("find_host_coherent_memory failed");
 
+   fail_on_error("vkAllocateMemory",
    vkAllocateMemory(vc->device,
                     &(VkMemoryAllocateInfo) {
                        .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
@@ -357,14 +364,15 @@ init_cube(struct vkcube *vc)
                        .memoryTypeIndex = memory_type,
                     },
                     NULL,
-                    &vc->mem);
+                    &vc->mem));
 
    fail_on_error("vkMapMemory", vkMapMemory(vc->device, vc->mem, 0, mem_size, 0, &vc->map));
    memcpy(vc->map + vc->vertex_offset, vVertices, sizeof(vVertices));
    memcpy(vc->map + vc->colors_offset, vColors, sizeof(vColors));
    memcpy(vc->map + vc->normals_offset, vNormals, sizeof(vNormals));
 
-   vkBindBufferMemory(vc->device, vc->buffer, vc->mem, 0);
+   fail_on_error("vkBindBufferMemory",
+   vkBindBufferMemory(vc->device, vc->buffer, vc->mem, 0));
 
    VkDescriptorPool desc_pool;
    const VkDescriptorPoolCreateInfo create_info = {
@@ -381,15 +389,17 @@ init_cube(struct vkcube *vc)
       }
    };
 
-   vkCreateDescriptorPool(vc->device, &create_info, NULL, &desc_pool);
+   fail_on_error("vkCreateDescriptorPool",
+   vkCreateDescriptorPool(vc->device, &create_info, NULL, &desc_pool));
 
+   fail_on_error("vkAllocateDescriptorSets",
    vkAllocateDescriptorSets(vc->device,
       &(VkDescriptorSetAllocateInfo) {
          .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
          .descriptorPool = desc_pool,
          .descriptorSetCount = 1,
          .pSetLayouts = &set_layout,
-      }, &vc->descriptor_set);
+      }, &vc->descriptor_set));
 
    vkUpdateDescriptorSets(vc->device, 1,
                           (VkWriteDescriptorSet []) {
@@ -441,14 +451,18 @@ render_cube(struct vkcube *vc, struct vkcube_buffer *b)
 
    memcpy(vc->map, &ubo, sizeof(ubo));
 
-   vkWaitForFences(vc->device, 1, &b->fence, VK_TRUE, UINT64_MAX);
-   vkResetFences(vc->device, 1, &b->fence);
+   fail_on_error("vkWaitForFences",
+   vkWaitForFences(vc->device, 1, &b->fence, VK_TRUE, UINT64_MAX));
 
+   fail_on_error("vkResetFences",
+   vkResetFences(vc->device, 1, &b->fence));
+
+   fail_on_error("vkBeginCommandBuffer",
    vkBeginCommandBuffer(b->cmd_buffer,
                         &(VkCommandBufferBeginInfo) {
                            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
                            .flags = 0
-                        });
+                        }));
 
    vkCmdBeginRenderPass(b->cmd_buffer,
                         &(VkRenderPassBeginInfo) {
@@ -508,8 +522,9 @@ render_cube(struct vkcube *vc, struct vkcube_buffer *b)
 
    vkCmdEndRenderPass(b->cmd_buffer);
 
-   vkEndCommandBuffer(b->cmd_buffer);
+   fail_on_error("vkEndCommandBuffer", vkEndCommandBuffer(b->cmd_buffer));
 
+   fail_on_error("vkQueueSubmit",
    vkQueueSubmit(vc->queue, 1,
       &(VkSubmitInfo) {
          .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
@@ -520,7 +535,7 @@ render_cube(struct vkcube *vc, struct vkcube_buffer *b)
          },
          .commandBufferCount = 1,
          .pCommandBuffers = &b->cmd_buffer,
-      }, b->fence);
+      }, b->fence));
 }
 
 struct model cube_model = {
