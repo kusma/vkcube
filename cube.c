@@ -50,11 +50,15 @@ static int find_host_coherent_memory(struct vkcube *vc, unsigned allowed)
     return -1;
 }
 
+static void fail_on_error(const char *func, VkResult result)
+{
+    if (result != VK_SUCCESS)
+        fail("%s failed", func);
+}
+
 static void
 init_cube(struct vkcube *vc)
 {
-   VkResult r;
-
    VkDescriptorSetLayout set_layout;
    vkCreateDescriptorSetLayout(vc->device,
                                &(VkDescriptorSetLayoutCreateInfo) {
@@ -355,9 +359,7 @@ init_cube(struct vkcube *vc)
                     NULL,
                     &vc->mem);
 
-   r = vkMapMemory(vc->device, vc->mem, 0, mem_size, 0, &vc->map);
-   if (r != VK_SUCCESS)
-      fail("vkMapMemory failed");
+   fail_on_error("vkMapMemory", vkMapMemory(vc->device, vc->mem, 0, mem_size, 0, &vc->map));
    memcpy(vc->map + vc->vertex_offset, vVertices, sizeof(vVertices));
    memcpy(vc->map + vc->colors_offset, vColors, sizeof(vColors));
    memcpy(vc->map + vc->normals_offset, vNormals, sizeof(vNormals));
